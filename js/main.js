@@ -28,5 +28,12 @@ function OnLangLoad(){
             name                = list[i].getAttribute("name");
             list[i].textContent = Lang[ name.substr(4) ];
         }
+
+        popup("In development",
+              `This is a project in development. Only a few instructions were implemented.<br>
+               <br>
+               Developed by <a href="https://github.com/Silva97">Luiz Felipe</a>.<br>
+               Distributed under the 
+               <a href="https://github.com/Silva97/SOSE/blob/master/LICENSE">MIT License</a>.`);
     });
 }
