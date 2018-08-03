@@ -1,0 +1,43 @@
+:root {
+    --menu-bg:           #091148;
+    --menu-button-hover: #293168;
+}
+
+
+.menu {
+    list-style-type: none;
+    margin:          0;
+    padding:         0;
+    overflow:        hidden;
+    color:           white;
+    font-weight:     bold;
+    text-decoration: none;
+    background:      var(--menu-bg);
+    top:             -25px;
+}
+
+.menu:focus {
+    top: 0;
+}
+
+.menu li {
+    float:       right;
+    padding:     15px 15px 5px 5px;
+    text-align:  center;
+    cursor:      pointer;
+    border-left: 1px solid white;
+}
+
+.menu li:hover {
+    background: var(--menu-button-hover);
+}
+
+.menu li[left] {
+    float:        left;
+    border-right: 1px solid white;
+    border-left:  none;
+}
+
+#file {
+    width: 200px;
+}

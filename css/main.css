@@ -1,0 +1,94 @@
+:root {
+    --color-bg:   #222222;
+    --color-fg:   white;
+    --color-text: #DADAFA;
+
+    /* Colors for attributes on screen   */
+    --attr-0: #000000; /* Black        */
+    --attr-1: #2525C1; /* Blue         */
+    --attr-2: #25C225; /* Green        */
+    --attr-3: #25BBBB; /* Aqua         */
+    --attr-4: #C42525; /* Red          */
+    --attr-5: #802580; /* Purple       */
+    --attr-6: #BBBB25; /* Yellow       */
+    --attr-7: #D7D7D7; /* White        */
+    --attr-8: #888888; /* Gray         */
+    --attr-9: #4545FF; /* Light Blue   */
+    --attr-A: #45FF45; /* Light Green  */
+    --attr-B: #45FFFF; /* Light Aqua   */
+    --attr-C: #FF4545; /* Light Red    */
+    --attr-D: #CC45CC; /* Light Purple */
+    --attr-E: #FFFF45; /* Light Yellow */
+    --attr-F: #FFFFFF; /* Bright White */
+}
+
+body {
+    background: var(--color-bg);
+    margin:     0px;
+}
+
+noscript {
+    font-size:  22px;
+    color:    white;
+    text-align: center;
+}
+
+.box {
+    color:    var(--color-text);
+    display:  inline-block;
+    overflow: hidden;
+}
+
+#screen {
+    font-family: monospace;
+    font-weight: bold;
+    text-align:  left;
+    margin:      5px;
+    border:      2px solid var(--color-fg);
+    font-size:   calc(3vmin - 1px);
+}
+
+@media (max-width: 1030px) {
+    #screen {
+        font-size: calc(3vmin - 2px);
+    }
+}
+
+#input {
+    position: absolute;
+    top:      2px;
+    width:    240px;
+    left:     calc(50% - 120px);
+}
+
+#popup {
+    background:    black;
+    color:         white;
+    box-shadow:    0 0 0 10px rgba(50, 50, 50, 0.5);
+    border-radius: 3px;
+    position:      absolute;
+    z-index:       1000;
+    text-align:    center;
+    padding:       10px;
+    width:         250px;
+    top:           20%;
+    left:          calc(50% - 125px);
+}
+
+#popup > button:nth-child(1n) {
+    color:         red;
+    float:         right;
+    background:    none;
+    border:        1px solid;
+    border-radius: 16px;
+    cursor:        pointer;
+}
+
+#popup > button:nth-child(1n):hover {
+    background: rgba(255, 0, 0, 0.4);
+}
+
+.title {
+    font-size:   28px;
+    font-weight: bold;
+}

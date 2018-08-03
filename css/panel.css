@@ -1,0 +1,71 @@
+.box-right {
+    font-family: monospace;
+    font-size:   calc(3vmin - 3px);
+    position:    absolute;
+    height:      90vh;
+    overflow-y:  auto;
+}
+
+.box-right p {
+    display:       inline-block;
+    margin-top:    3px;
+    margin-bottom: 0px;
+    padding:       0px 8px;
+}
+
+.panel-title {
+    font-weight: bold;
+    color:       var(--color-fg);
+}
+
+.panel-title-big {
+    font-weight: bold;
+    font-size:   18px;
+    color:       var(--color-fg);
+}
+
+.value-normal {
+    font-weight: bold;
+    color:       #A4A4A4;
+}
+
+.value-edited {
+    font-weight: bold;
+    color:       #D52525;
+}
+
+.btn-small {
+    background:  none;
+    border:      none;
+    color:       green;
+    font-weight: bold;
+    font-size:   2ch;
+    cursor:      pointer;
+}
+
+.memory-button {
+    background:  none;
+    border:      none;
+    color:       red;
+    font-weight: bold;
+    cursor:      pointer;
+}
+
+.memory-label {
+    color:       white;
+    font-weight: bold;
+}
+
+.memory-box {
+    border:    1px solid var(--color-fg);
+    height:    24ch;
+    width:     16ch;
+    overflow:  auto;
+    word-wrap: break-word;
+    display:   inline-grid;
+    resize:    vertical;
+}
+
+.memory-box span {
+    padding: 0px 0px 0px 1ch;
+}

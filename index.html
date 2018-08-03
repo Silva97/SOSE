@@ -1,0 +1,59 @@
+<!--
+Developed by Luiz Felipe - 2018
+    GitHub: https://github.com/Silva97
+    Email:  felipe.silva337@yahoo.com
+
+Distributed under the MIT License.
+-->
+
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Web 8086</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/panel.css">
+        <link rel="stylesheet" href="css/menu.css">
+
+        <script src="js/expand.js"></script>
+        <script src="js/main.js"></script>
+    </head>
+
+    <body>
+        <div id="popup" style="display: none">
+            <button onclick="this.parentNode.style.display = 'none'">
+                X
+            </button>
+            <br>
+            <span class="title"></span>
+            <br><br>
+            <span></span>
+            <br>
+        </div>
+
+        <ul class="menu" data-click="menu_click">
+            <li left><input type="file" id="file"></li>
+            <li left><span name="txt_loadBinary">Load binary</span></li>
+            <li left><span name="txt_step">Step</span></li>
+            <li left id="bt_run"><span name="txt_run">Run</span></li>
+            <li left>
+                <span name="txt_delay">Delay</span> (0~5000):
+                <input type="number" value="500" min="0" max="5000" id="emu_delay">
+            </li>
+        </ul>
+
+        <noscript>
+            Your JavaScript is disabled.
+            <br>
+            The emulator uses JavaScript for run. Please, enable it.
+        </noscript>
+
+        <input type="text" id="input" hidden="true">
+        <div class="box">
+            <pre id="screen" onclick="input();"></pre>
+        </div>
+        <div class="box box-right" align="center" id="panel"></div>
+    </body>
+</html>
