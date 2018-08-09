@@ -403,15 +403,11 @@ class Emulator8086 {
             this.OnReset();
     }
 
-    step(n = 1){
-        var opcode;
+    step(){
+        var opcode = Machine8086.step(this);
 
-        for(var i = 0; i < n; i++){
-            opcode = Machine8086.step(this);
-
-            if(typeof this.OnStep == "function")
-                this.OnStep(opcode);
-        }
+        if(typeof this.OnStep == "function")
+            this.OnStep(opcode);
     }
 
     /*****

@@ -41,7 +41,7 @@ function menu_click(tag){
             reader.readAsBinaryString(file.files[0]);
             break;
         case Lang.step:
-            emu_step();
+            emu_step(1, true);
             break;
         case Lang.run:
             emu_run($("#emu_delay").value);

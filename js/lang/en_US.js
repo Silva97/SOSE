@@ -2,9 +2,11 @@
 
 var Lang = {
     address:               "Address",
+    breakpoint:            "Breakpoint",
     createMemoryViewer:    "Create memory viewer",
     delay:                 "Delay",
     emulatorMessage:       "Emulator message",
+    exception:             "Exception",
     flags:                 "FLAGS",
     index:                 "Index",
     inputForTheEmulator:   "Input for the emulator",

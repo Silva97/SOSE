@@ -58,6 +58,47 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                [s.bet(0x10, 0x13)]: (b)=>{ // ADC r/m(8/16), r/m(8/16)
+                    let modRM = _parseModRM(bitW, emulator.get("byte"));
+
+                    if(bitD){
+                        let opValue;
+
+                        if(modRM.operand instanceof Array){
+                            opValue = emulator.getFrom(_calcAddress(emulator, modRM.operand),
+                                                       size);
+                        } else {
+                            opValue = emulator.getRegister(modRM.operand);
+                        }
+
+                        emulator.addRegister(modRM.register, opValue + emulator.getFlag("CF"));
+                    } else {
+                        if(modRM.operand instanceof Array){
+                            emulator.add(_calcAddress(emulator, modRM.operand),
+                                         size, emulator.getRegister(modRM.register) +
+                                               emulator.getFlag("CF"));
+                        } else {
+                            emulator.addRegister(modRM.operand,
+                                                 emulator.getRegister(modRM.register) +
+                                                 emulator.getFlag("CF"));
+                        }
+                    }
+
+                    opcode = b;
+                    return true;
+                },
+                0x14: (b)=>{ // ADC AL, imm8
+                    emulator.addRegister("AL", emulator.get("byte") +
+                                               emulator.getFlag("CF"));
+                    opcode = b;
+                    return true;
+                },
+                0x15: (b)=>{ // ADC AX, imm16
+                    emulator.addRegister("AX", emulator.get("word") +
+                                               emulator.getFlag("CF"));
+                    opcode = b;
+                    return true;
+                },
                 [s.any(0x06, 0x0E, 0x16, 0x1E)]: (b)=>{ // PUSH sreg
                     switch(b){
                         case 0x06:
@@ -96,6 +137,104 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                [s.bet(0x20, 0x23)]: (b)=>{ // AND r/m(8/16), r/m(8/16)
+                    let modRM = _parseModRM(bitW, emulator.get("byte"));
+
+                    if(bitD){
+                        let opValue;
+
+                        if(modRM.operand instanceof Array){
+                            opValue = emulator.getFrom(_calcAddress(emulator, modRM.operand),
+                                                       size);
+                        } else {
+                            opValue = emulator.getRegister(modRM.operand);
+                        }
+
+                        emulator.setRegister(modRM.register,
+                                emulator.getRegister(modRM.register) & opValue);
+                    } else {
+                        if(modRM.operand instanceof Array){
+                            let addr = _calcAddress(emulator, modRM.operand);
+                            emulator.set(addr, size, emulator.getFrom(addr, size) &
+                                                     emulator.getRegister(modRM.register));
+                        } else {
+                            emulator.setRegister(modRM.operand,
+                                                 emulator.getRegister(modRM.operand) &
+                                                 emulator.getRegister(modRM.register));
+                        }
+                    }
+
+                    opcode = b;
+                    return true;
+                },
+                0x24: (b)=>{ // AND AL, imm8
+                    emulator.setRegister("AL", emulator.getRegister("AL") &
+                                               emulator.get("byte"));
+                    opcode = b;
+                    return true;
+                },
+                0x25: (b)=>{ // AND AX, imm16
+                    emulator.setRegister("AX", emulator.getRegister("AX") &
+                                               emulator.get("word"));
+                    opcode = b;
+                    return true;
+                },
+                0x37: (b)=>{ // AAA
+                    let ax = emulator.getRegister("AX");
+                    if(ax & 0x000F > 9 || emulator.getFlag("AF")){
+                        ax += 6 + (1 << 8);
+                        emulator.setFlag("AF", 1);
+                        emulator.setFlag("CF", 1);
+                    } else {
+                        emulator.setFlag("AF", 0);
+                        emulator.setFlag("CF", 0);
+                    }
+
+                    ax &= ~(0xF0);
+                    emulator.setRegister("AX", ax);
+
+                    opcode = b;
+                    return true;
+                },
+                [s.bet(0x38, 0x3B)]: (b)=>{ // CMP r/m(8/16), r/m(8/16)
+                    let c,
+                        modRM = _parseModRM(bitW, emulator.get("byte"));
+
+                    if(bitD){
+                        let opValue;
+
+                        if(modRM.operand instanceof Array){
+                            opValue = emulator.getFrom(_calcAddress(emulator, modRM.operand),
+                                                       size);
+                        } else {
+                            opValue = emulator.getRegister(modRM.operand);
+                        }
+
+                        c = _subtract(emulator.getRegister(modRM.register),
+                                      opValue,
+                                      size);
+                    } else {
+                        if(modRM.operand instanceof Array){
+                            c = _subtract(emulator.getFrom(_calcAddress(emulator, modRM.operand), size),
+                                          emulator.getRegister(modRM.register),
+                                          size);
+                        } else {
+                            c = _subtract(emulator.getRegister(modRM.operand),
+                                          emulator.getRegister(modRM.register),
+                                          size);
+                        }
+                    }
+
+                    emulator.setFlag("OF", c.of);
+                    emulator.setFlag("ZF", c.zf);
+                    emulator.setFlag("SF", c.sf);
+                    emulator.setFlag("PF", c.pf);
+                    emulator.setFlag("CF", c.cf);
+                    emulator.setFlag("AF", c.af);
+
+                    opcode = b;
+                    return true;
+                },
                 0x3C: (b)=>{ // CMP AL, imm8
                     let c = _subtract(emulator.getRegister("AL"),
                                       emulator.get("byte"),
@@ -107,6 +246,38 @@ var Machine8086 = {
                     emulator.setFlag("PF", c.pf);
                     emulator.setFlag("CF", c.cf);
                     emulator.setFlag("AF", c.af);
+
+                    opcode = b;
+                    return true;
+                },
+                0x3D: (b)=>{ // CMP AX, imm16
+                    let c = _subtract(emulator.getRegister("AX"),
+                                      emulator.get("word"),
+                                      "word");
+                    
+                    emulator.setFlag("OF", c.of);
+                    emulator.setFlag("ZF", c.zf);
+                    emulator.setFlag("SF", c.sf);
+                    emulator.setFlag("PF", c.pf);
+                    emulator.setFlag("CF", c.cf);
+                    emulator.setFlag("AF", c.af);
+
+                    opcode = b;
+                    return true;
+                },
+                0x3F: (b)=>{ // AAS
+                    let ax = emulator.getRegister("AX");
+                    if(ax & 0x000F > 9 || emulator.getFlag("AF")){
+                        ax -= 6 + (1 << 8);
+                        emulator.setFlag("AF", 1);
+                        emulator.setFlag("CF", 1);
+                    } else {
+                        emulator.setFlag("AF", 0);
+                        emulator.setFlag("CF", 0);
+                    }
+
+                    ax &= ~(0xF0);
+                    emulator.setRegister("AX", ax);
 
                     opcode = b;
                     return true;
@@ -182,29 +353,116 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
-                [s.any(0x80, 0x81)]: (b)=>{ // ADD r/m(8/16), imm(8/16)
-                    let modRM = _parseModRM(bitW, emulator.get("byte"));
+                [s.any(0x80, 0x81)]: (b)=>{ // ADD/ADC/AND/CMP r/m(8/16), imm(8/16)
+                    let c,
+                        modRM = _parseModRM(bitW, emulator.get("byte"));
 
                     if(modRM.operand instanceof Array){
-                        emulator.add(_calcAddress(emulator, modRM.operand),
-                                     size, emulator.get(size));
+                        let addr  = _calcAddress(emulator, modRM.operand),
+                            value = emulator.getFrom(addr, size);
+                        
+                        switch(modRM.reg){
+                            case 0b000: // ADD
+                                emulator.add(addr, size, emulator.get(size));
+                                break;
+                            case 0b010: // ADC
+                                emulator.add(addr, size, emulator.get(size) +
+                                                         emulator.getFlag("CF"));
+                                break;
+                            case 0b100: // AND
+                                emulator.set(addr, size, value & emulator.get(size));
+                                break;
+                            case 0b111: // CMP
+                                c = _subtract(emulator.getFrom(addr, size),
+                                              emulator.get(size),
+                                              size);
+                                break;
+                        }
                     } else {
-                        emulator.addRegister(modRM.operand,
-                                             emulator.get(size));
+                        switch(modRM.reg){
+                            case 0b000: // ADD
+                                emulator.addRegister(modRM.operand, emulator.get(size));
+                                break;
+                            case 0b010: // ADC
+                                emulator.addRegister(modRM.operand, emulator.get(size) +
+                                                                    emulator.getFlag("CF"));
+                                break;
+                            case 0b100: // AND
+                                emulator.setRegister(modRM.operand,
+                                                     emulator.getRegister(modRM.operand) &
+                                                     emulator.get(size));
+                                break;
+                            case 0b111: // CMP
+                                c = _subtract(emulator.getRegister(modRM.operand),
+                                              emulator.get(size),
+                                              size);
+                                break;
+                        }
+                    }
+
+                    if(modRM.reg == 0b111){
+                        emulator.setFlag("OF", c.of);
+                        emulator.setFlag("ZF", c.zf);
+                        emulator.setFlag("SF", c.sf);
+                        emulator.setFlag("PF", c.pf);
+                        emulator.setFlag("CF", c.cf);
+                        emulator.setFlag("AF", c.af);
                     }
 
                     opcode = b;
                     return true;
                 },
-                0x83: (b)=>{ // ADD r/m16, imm8
-                    let modRM = _parseModRM(bitW, emulator.get("byte"));
+                0x83: (b)=>{ // ADD/ADC/AND/CMP r/m16, imm8
+                    let c,
+                        modRM = _parseModRM(bitW, emulator.get("byte"));
 
                     if(modRM.operand instanceof Array){
-                        emulator.add(_calcAddress(emulator, modRM.operand),
-                                     "word", emulator.get("byte"));
+                        let addr  = _calcAddress(emulator, modRM.operand),
+                            value = emulator.getFrom(addr, size);
+                        
+                        switch(modRM.reg){
+                            case 0b000: // ADD
+                                emulator.add(addr, "word", emulator.get("byte"));
+                                break;
+                            case 0b010: // ADC
+                                emulator.add(addr, "word", emulator.get("byte") +
+                                                           emulator.getFlag("CF"));
+                                break;
+                            case 0b100: // AND
+                                emulator.set(addr, "word", value & emulator.get("byte"));
+                                break;
+                            case 0b111: // CMP
+                                c = _subtract(value, emulator.get("byte"), "byte");
+                                break;
+                        }
                     } else {
-                        emulator.addRegister(modRM.operand,
-                                             emulator.get("byte"));
+                        switch(modRM.reg){
+                            case 0b000: // ADD
+                                emulator.addRegister(modRM.operand, emulator.get("byte"));
+                                break;
+                            case 0b010: // ADC
+                                emulator.addRegister(modRM.operand, emulator.get("byte") +
+                                                                    emulator.getFlag("CF"));
+                                break;
+                            case 0b100: // AND
+                                emulator.setRegister(modRM.operand,
+                                                     emulator.getRegister(modRM.operand) &
+                                                     emulator.get("byte"));
+                                break;
+                            case 0b111: // CMP
+                                c = _subtract(emulator.getRegister(modRM.operand),
+                                              emulator.get("byte"), "byte");
+                                break;
+                        }
+                    }
+
+                    if(modRM.reg == 0b111){
+                        emulator.setFlag("OF", c.of);
+                        emulator.setFlag("ZF", c.zf);
+                        emulator.setFlag("SF", c.sf);
+                        emulator.setFlag("PF", c.pf);
+                        emulator.setFlag("CF", c.cf);
+                        emulator.setFlag("AF", c.af);
                     }
 
                     opcode = b;
@@ -258,6 +516,58 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                0x98: (b)=>{ // CBW
+                    if(emulator.getRegister("AL") & (1 << 7))
+                        emulator.setRegister("AH", 0xFF);
+                    else
+                        emulator.setRegister("AH", 0x00);
+                    
+                    opcode = b;
+                    return true;
+                },
+                0x99: (b)=>{ // CWD
+                    if(emulator.getRegister("AX") & (1 << 15))
+                        emulator.setRegister("DX", 0xFFFF);
+                    else
+                        emulator.setRegister("DX", 0x0000);
+                    
+                    opcode = b;
+                    return true;
+                },
+                0x9A: (b)=>{ // CALLF SEGMENT:OFFSET
+                    let offset  = emulator.get("word"),
+                        segment = emulator.get("word");
+
+                    emulator.push("CS");
+                    emulator.push("IP");
+                    emulator.setRegister("IP", offset);
+                    emulator.setRegister("CS", segment);
+                    opcode = b;
+                    return true;
+                },
+                [s.any(0xA6, 0xA7)]: (b)=>{ // CMPSB/CMPSW
+                    let si = emulator.getFrom("DS:SI", size),
+                        di = emulator.getFrom("ES:DI", size),
+                        c  = _subtract(si, di, size);
+                    
+                    emulator.setFlag("OF", c.of);
+                    emulator.setFlag("ZF", c.zf);
+                    emulator.setFlag("SF", c.sf);
+                    emulator.setFlag("PF", c.pf);
+                    emulator.setFlag("CF", c.cf);
+                    emulator.setFlag("AF", c.af);
+
+                    if(emulator.getFlag("DF")){
+                        emulator.addRegister("SI", -1);
+                        emulator.addRegister("DI", -1);
+                    } else {
+                        emulator.addRegister("SI", 1);
+                        emulator.addRegister("DI", 1);
+                    }
+
+                    opcode = b;
+                    return true;
+                },
                 [s.bet(0xB0, 0xB7)]: (b)=>{ // MOV reg8, imm8
                     emulator.setRegister(regList[b-0xB0], emulator.get("byte"));
                     opcode = b;
@@ -292,6 +602,11 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                0xCC: (b)=>{ // INT3
+                    this.exception(3, b);
+                    opcode = b;
+                    return true;
+                },
                 0xCD: (b)=>{ // INT imm8
                     let int = emulator.get("byte");
                     if(emulator.virtualInterrupt &&
@@ -320,14 +635,27 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
-                0x9A: (b)=>{ // CALLF SEGMENT:OFFSET
-                    let offset  = emulator.get("word"),
-                        segment = emulator.get("word");
+                0xD4: function(b){ // AAM
+                    if(emulator.get("byte") != 0x0A)
+                        return this[s.default](b);
+                    
+                    let al = emulator.getRegister("AL");
+                    
+                    emulator.setRegister("AH", al / 10);
+                    emulator.setRegister("AL", al % 10);
 
-                    emulator.push("CS");
-                    emulator.push("IP");
-                    emulator.setRegister("IP", offset);
-                    emulator.setRegister("CS", segment);
+                    opcode = b;
+                    return true;
+                },
+                0xD5: function(b){ // AAD
+                    if(emulator.get("byte") != 0x0A)
+                        return this[s.default](b);
+                    
+                    let al = emulator.getRegister("AH") * 10 +
+                             emulator.getRegister("AL");
+                    
+                    emulator.setRegister("AX", al % 0x100);
+
                     opcode = b;
                     return true;
                 },
@@ -345,10 +673,48 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                0xF5: (b)=>{ // CMC
+                    emulator.setFlag("CF", 1 - emulator.getFlag("CF"));
+                    opcode = b;
+                    return true;
+                },
+                0xF8: (b)=>{ // CLC
+                    emulator.setFlag("CF", 0);
+                    opcode = b;
+                    return true;
+                },
+                0xF9: (b)=>{ // STC
+                    emulator.setFlag("CF", 1);
+                    opcode = b;
+                    return true;
+                },
+                0xFA: (b)=>{ // CLI
+                    emulator.setFlag("IF", 0);
+                    opcode = b;
+                    return true;
+                },
+                0xFB: (b)=>{ // STI
+                    emulator.setFlag("IF", 1);
+                    opcode = b;
+                    return true;
+                },
+                0xFC: (b)=>{ // CLD
+                    emulator.setFlag("DF", 0);
+                    opcode = b;
+                    return true;
+                },
+                0xFD: (b)=>{ // STD
+                    emulator.setFlag("DF", 1);
+                    opcode = b;
+                    return true;
+                },
 
                 [s.default]: (b)=>{
                     if(typeof this.OnError == "function")
                         this.OnError(b);
+                    
+                    opcode = b;
+                    return true;
                 }
             });
 
@@ -357,6 +723,11 @@ var Machine8086 = {
         }
 
         return opcode;
+    },
+
+    exception: function(n, opcode){
+        if(typeof this.OnException == "function")
+            this.OnException(n, opcode);
     }
 };
 
@@ -426,7 +797,8 @@ function _calcAddress(emulator, values){
             addr += emulator.getRegister(values[i]);
         } else if(typeof values[i] == "number"){
             addr += emulator.memory["getUint"+values[i]](
-                        emulator.addRegister("IP", values[i]/8));
+                        emulator.addRegister("IP", values[i]/8),
+                        true);
         } else {
             return -1;
         }

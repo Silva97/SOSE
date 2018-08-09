@@ -11,12 +11,24 @@ var emu_delay,
     emu_running     = false,
     emu_autoRefresh = true;
 
-function emu_step(n = 1){
+function emu_step(n = 1, autoRefresh){
     var list = $(".value-edited", true);
     list.setAll("className", "value-normal");
     list.setAll("lastValue", 0);
+
+    if(n <= 0)
+        n = 1;
     
-    emulator.step((n >= 1)? n : 1);
+    for(var i = 0; i < n && (emu_running || autoRefresh); i++){
+        if(autoRefresh){
+            let lastValue   = emu_autoRefresh;
+            emu_autoRefresh = true;
+            emulator.step();
+            emu_autoRefresh = lastValue;
+        } else {
+            emulator.step();
+        }
+    }
 }
 
 function emu_run(delay = 0){

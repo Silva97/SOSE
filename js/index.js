@@ -28,6 +28,24 @@ var screen,
     emulator  = new Emulator8086();
     bios      = new Bios(emulator, screen_width, screen_height, "snd/beep.wav");
 
+    // Machine
+    Machine8086.OnError = function(opcode){
+        opcode = opcode.toString(16).toUpperCase();
+        popup("In development", `The instruction "${opcode}" have not implemented yet.`);
+        emu_stop();
+    }
+
+    Machine8086.OnException = function(n, opcode){
+        var list = {
+            3: Lang.breakpoint
+        };
+
+
+        popup(`${Lang.exception} ${n}`, list[n]);
+        emu_stop();
+    }
+
+    // BIOS
     bios.OnReboot = function(){
         popup(Lang.emulatorMessage, Lang.int0x19);
         emu_stop();
@@ -40,6 +58,7 @@ var screen,
         screen.load( emulator.dump(vaddr, screen_width*screen_height*2, "byte") );
     };
 
+    // Emulator
     emulator.OnRegisterSet = function(reg){
         if(!emu_autoRefresh)
             return;
