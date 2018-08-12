@@ -6,8 +6,11 @@
  * Distributed under the MIT License.
  ********************/
 
+var addr_load = 0x7C00;
+
 (function(){
-    var btns = $(".menu li", true);
+    var btns = $(".menu li", true),
+        addr = $("#emu_addr");
 
     for(var i = 0; i < btns.length; i++){
         btns[i].onclick = function(){
@@ -18,6 +21,13 @@
     $("#emu_delay").oninput = function(){
         emu_delay = this.value;
     }
+
+    addr.oninput = function(){
+        addr_load  = parseInt(this.value, 16);
+        this.value = this.value.toUpperCase();
+    }
+
+    addr.value = "7C00";
 })();
 
 function menu_click(tag){
@@ -32,7 +42,8 @@ function menu_click(tag){
             var reader       = new FileReader();
             reader.onloadend = function(){
                 emu_reset();
-                emulator.load(0, this.result);
+                emulator.load(addr_load, this.result);
+                emulator.setRegister("IP", addr_load);
                 
                 for(var i = 0; i < memory_list.length; i++)
                     memory_list[i].refresh();

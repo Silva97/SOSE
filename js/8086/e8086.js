@@ -49,6 +49,8 @@ class Emulator8086 {
                 return;
             }
 
+            value = Math.floor(value);
+
             switch(register){
                 case "AL":
                     if(value < 0)

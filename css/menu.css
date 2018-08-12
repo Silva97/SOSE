@@ -38,6 +38,10 @@
     border-left:  none;
 }
 
+.menu input[type="text"] {
+    width: 9ch;
+}
+
 #file {
     width: 200px;
 }

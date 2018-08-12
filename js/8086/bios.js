@@ -29,8 +29,11 @@ class Bios {
         for(let i = 1; i < this.screen_width*this.screen_height*2*8; i += 2)
             this.emulator.set(BIOS_SCREEN_ADDRESS + i, "byte", 0x07); // Default attribute
         
+        this.emulator.interrupt[0x00] = ()=>{ // Division By Zero
+            Machine8086.exception(0, 0xCD);
+        };
         
-        this.emulator.interrupt[0x03] = ()=>{
+        this.emulator.interrupt[0x03] = ()=>{ // Breakpoint
             Machine8086.exception(3, 0xCD);
         };
     

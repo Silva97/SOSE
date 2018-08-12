@@ -35,13 +35,18 @@ var screen,
         emu_stop();
     }
 
-    Machine8086.OnException = function(n, opcode){
+    Machine8086.OnException = function(n){
         var list = {
+            0: Lang.divisionByZero,
             3: Lang.breakpoint
         };
 
-
         popup(`${Lang.exception} ${n}`, list[n]);
+        emu_stop();
+    }
+
+    Machine8086.OnHalt = function(){
+        popup(Lang.emulatorMessage, Lang.halt);
         emu_stop();
     }
 
