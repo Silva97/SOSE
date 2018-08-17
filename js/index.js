@@ -210,11 +210,11 @@ var screen,
                 else
                     value = parseInt(this.innerHTML, 16);
 
-                emulator.setRegister(this.id.substr(4).toUpperCase(),
-                                     value);
-
                 this.innerHTML = value.toString(16).toUpperCase().align("0", 4);
                 this.lastValue = value;
+                
+                emulator.setRegister(this.id.substr(4).toUpperCase(),
+                                     value);
             }
         });
 
@@ -267,11 +267,10 @@ var screen,
                 if(!this.id)
                     return;
 
-                var value = parseInt(this.innerHTML);
+                var value      = parseInt(this.innerHTML);
+                this.lastValue = value;
                 emulator.setFlag(this.id.substr(5).toUpperCase()+"F",
                                  value);
-
-                this.lastValue = value;
             }
         });
     }
