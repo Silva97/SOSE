@@ -9,6 +9,8 @@
 "use strict";
 
 var Machine8086 = {
+    repeating: false,
+
     step: function(emulator){
         var byte, opcode, bitD, bitW, size, ret;
         var regList = ["AL", "CL", "DL", "BL", "AH", "CH", "DH", "BH",
@@ -904,6 +906,207 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                [s.any(0xD0, 0xD1)]: (b)=>{ // ROL/ROR/RCL/RCR/SAL/SAR/SHL/SHR r/m(8/16), 1
+                    let value, cf, sign,
+                        modRM = _parseModRM(bitW, emulator.get("byte"));
+                    
+                    if(modRM.operand instanceof Array)
+                        value = emulator.getFrom(_calcAddress(emulator, modRM.operand), size);
+                    else
+                        value = emulator.getRegister(modRM.operand);
+
+                    switch(modRM.reg){
+                        case 0b000: // ROL
+                            sign  = _getSign(value, size);
+                            value = _rotateLeft(value, size, 1);
+
+                            emulator.setFlag("CF", sign);
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b001: // ROR
+                            sign = _getSign(value, size);
+
+                            emulator.setFlag("CF", value & 1);
+                            value = _rotateRight(value, size, 1);
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b010: // RCL
+                            cf    = emulator.getFlag("CF");
+                            sign  = _getSign(value, size);
+                            value = (value << 1) | cf;
+
+                            emulator.setFlag("CF", sign);
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b011: // RCR
+                            cf   = emulator.getFlag("CF"),
+                            sign = _getSign(value, size);
+
+                            emulator.setFlag("CF", value & 1);
+                            value = (value >> 1) | cf << (7 + (8 * bitW));
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b100: // SAL/SHL
+                            sign    = _getSign(value, size);
+                            value <<= 1;
+
+                            emulator.setFlag("CF", sign);
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b101: // SHR
+                            sign = _getSign(value, size);
+                            emulator.setFlag("CF", value & 1);
+
+                            value >>= 1;
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b111: // SAR
+                            sign = _getSign(value, size);
+
+                            emulator.setFlag("CF", value & 1);
+                            value = (value >> 1) | sign << (7 + (8 * bitW));
+
+                            emulator.setFlag("OF", 0);
+                            break;
+                    }
+
+                    if(modRM.operand instanceof Array)
+                        emulator.set(_calcAddress(emulator, modRM.operand), size, value);
+                    else
+                        emulator.setRegister(modRM.operand, value);
+                    
+                    opcode = b;
+                    return true;
+                },
+                [s.any(0xD2, 0xD3)]: (b)=>{ // ROL/ROR/RCL/RCR/SAL/SAR/SHL/SHR r/m(8/16), CL
+                    let value, cf, sign, cl,
+                        modRM = _parseModRM(bitW, emulator.get("byte"));
+                    
+                    if(modRM.operand instanceof Array)
+                        value = emulator.getFrom(_calcAddress(emulator, modRM.operand), size);
+                    else
+                        value = emulator.getRegister(modRM.operand);
+
+                    switch(modRM.reg){
+                        case 0b000: // ROL
+                            cl = emulator.getRegister("CL");
+                            
+                            if(cl == 0)
+                                break;
+                            
+                            value = _rotateLeft(value, size, cl-1);
+                            sign  = _getSign(value, size);
+
+
+                            emulator.setFlag("CF", sign);
+                            value = _rotateLeft(value, size, 1);
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b001: // ROR
+                            cl = emulator.getRegister("CL");
+                            
+                            if(cl == 0)
+                                break;
+                            
+                            value = _rotateRight(value, size, cl-1);
+                            sign  = _getSign(value, size);
+
+
+                            emulator.setFlag("CF", value & 1);
+                            value = _rotateRight(value, size, 1);
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b010: // RCL
+                            cl = emulator.getRegister("CL");
+                            
+                            if(cl == 0)
+                                break;
+                            
+                            value = _rotateLeft(value, size, cl-1);
+                            cf    = emulator.getFlag("CF");
+                            sign  = _getSign(value, size);
+
+
+                            emulator.setFlag("CF", sign);
+                            value = (value << 1) | cf;
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b011: // RCR
+                            cl = emulator.getRegister("CL");
+                            
+                            if(cl == 0)
+                                break;
+                            
+                            value = _rotateRight(value, size, cl-1);
+                            cf    = emulator.getFlag("CF");
+                            sign  = _getSign(value, size);
+
+
+                            emulator.setFlag("CF", value & 1);
+                            value = (value >> 1) | cf << (7 + (8 * bitW));
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b100: // SAL/SHL
+                            cl = emulator.getRegister("CL");
+                            
+                            if(cl == 0)
+                                break;
+                            
+                            value = value << (cl - 1);
+                            sign  = _getSign(value, size);
+
+
+                            emulator.setFlag("CF", sign);
+                            value <<= 1;
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b101: // SHR
+                            cl = emulator.getRegister("CL");
+                            
+                            if(cl == 0)
+                                break;
+                            
+                            value = value >> (cl - 1);
+                            sign  = _getSign(value, size);
+
+
+                            emulator.setFlag("CF", value & 1);
+                            value >>= 1;
+
+                            emulator.setFlag("OF", 0 + (_getSign(value, size) != sign));
+                            break;
+                        case 0b111: // SAR
+                            cl = emulator.getRegister("CL");
+                            
+                            if(cl == 0)
+                                break;
+                            
+                            for(let i = 0; i < cl; i++){
+                                sign  = _getSign(value, size);
+                                value = (value >> 1) | sign << (7 + (8 * bitW));
+                                cf    = value & 1;
+                            }
+
+                            emulator.setFlag("CF", cf);
+                            emulator.setFlag("OF", 0);
+                            break;
+                    }
+
+                    if(modRM.operand instanceof Array)
+                        emulator.set(_calcAddress(emulator, modRM.operand), size, value);
+                    else
+                        emulator.setRegister(modRM.operand, value);
+                    
+                    opcode = b;
+                    return true;
+                },
                 0xD4: function(b){ // AAM
                     if(emulator.get("byte") != 0x0A)
                         return this[s.default](b);
@@ -983,6 +1186,31 @@ var Machine8086 = {
                     emulator.addRegister("IP", dist);
                     opcode = b;
                     return true;
+                },
+                [s.any(0xF2, 0xF3)]: function(b){ // REP/REPNZ/REPZ
+                    let next = emulator.getFrom("CS:IP", "byte");
+                    emulator.addRegister("CX", -1);
+
+                    switch(next){
+                        case 0xA4: case 0xA5: // MOVSB/MOVSW
+                        case 0xAA: case 0xAB: // STOSB/STOSW
+                        case 0xAC: case 0xAD: // LODSB/LODSW
+                            Machine8086.repeating = (emulator.getRegister("CX") != 0); // REP
+                            break;
+                        case 0xA6: case 0xA7: // CMPSB/CMPSW
+                        case 0xAE: case 0xAF: // SCASB/SCASW
+                            if(b == 0xF2){    // REPNZ
+                                Machine8086.repeating = (emulator.getRegister("CX") &&
+                                                         !emulator.getFlag("ZF"));
+                            } else {          // REPZ
+                                Machine8086.repeating = (emulator.getRegister("CX") &&
+                                                         emulator.getFlag("ZF"));
+                            }
+                            break;
+                        
+                        default:
+                            return this[s.default](next);
+                    }
                 },
                 0xF4: (b)=>{ // HLT
                     if(typeof this.OnHalt == "function")
@@ -1178,6 +1406,9 @@ var Machine8086 = {
                 break;
         }
 
+        if(this.repeating)
+            emulator.addRegister("IP", -2);
+        
         return opcode;
     },
 
@@ -1307,6 +1538,30 @@ function _toSignedValue(value, size){
     if(value < 0)
         value = max + value + 1;
 
+    return value;
+}
+
+function _getSign(value, size = "byte"){
+    var rot = {
+        "byte":  7,
+        "word":  15,
+        "dword": 31
+    }[size];
+
+    return (value & (1 << rot)) >> rot;
+}
+
+function _rotateLeft(value, size = "byte", rotation){
+    for(let i = 0; i < rotation; i++)
+        value = _getSign(value, size) | (value << 1);
+    
+    return value;
+}
+
+function _rotateRight(value, size = "byte", rotation){
+    for(let i = 0; i < rotation; i++)
+        value = _getSign(value, size) | (value >> 1);
+    
     return value;
 }
 
