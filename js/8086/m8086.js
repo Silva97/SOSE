@@ -72,6 +72,56 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                [s.bet(0x08, 0x0B)]: (b)=>{ // OR r/m(8/16), r/m(8/16)
+                    let modRM = _parseModRM(bitW, emulator.get("byte"));
+
+                    if(bitD){
+                        let opValue;
+
+                        if(modRM.operand instanceof Array){
+                            opValue = emulator.getFrom(_calcAddress(emulator, modRM.operand),
+                                                       size);
+                        } else {
+                            opValue = emulator.getRegister(modRM.operand);
+                        }
+
+                        _setFlags(emulator, _or(emulator.getRegister(modRM.register),
+                                                opValue, size));
+                        emulator.setRegister(modRM.register,
+                                emulator.getRegister(modRM.register) | opValue);
+                    } else {
+                        if(modRM.operand instanceof Array){
+                            let addr = _calcAddress(emulator, modRM.operand);
+
+                            _setFlags(emulator, _or(emulator.getFrom(addr, size),
+                                                    emulator.getRegister(modRM.register),
+                                                    size));
+                            emulator.set(addr, size, emulator.getFrom(addr, size) |
+                                                     emulator.getRegister(modRM.register));
+                        } else {
+                            _setFlags(emulator, _or(emulator.getRegister(modRM.operand),
+                                                    emulator.getRegister(modRM.register),
+                                                    size));
+                            emulator.setRegister(modRM.operand,
+                                                 emulator.getRegister(modRM.operand) |
+                                                 emulator.getRegister(modRM.register));
+                        }
+                    }
+
+                    opcode = b;
+                    return true;
+                },
+                [s.any(0x0C, 0x0D)]: (b)=>{ // OR AL/AX, imm8
+                    let value = emulator.get(size),
+                        reg   = ["AL", "AX"][bitW];
+                    
+                    _setFlags(emulator, _or(emulator.getRegister(reg),
+                                             value, size));
+                    emulator.setRegister(reg, emulator.getRegister(reg) |
+                                              value);
+                    opcode = b;
+                    return true;
+                },
                 [s.bet(0x10, 0x13)]: (b)=>{ // ADC r/m(8/16), r/m(8/16)
                     let modRM = _parseModRM(bitW, emulator.get("byte"));
 
@@ -210,21 +260,14 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
-                0x24: (b)=>{ // AND AL, imm8
-                    let value = emulator.get("byte");
-                    _setFlags(emulator, _and(emulator.getRegister("AL"),
-                                             value, "byte"));
-                    emulator.setRegister("AL", emulator.getRegister("AL") &
-                                               value);
-                    opcode = b;
-                    return true;
-                },
-                0x25: (b)=>{ // AND AX, imm16
-                    let value = emulator.get("word");
-                    _setFlags(emulator, _and(emulator.getRegister("AX"),
-                                             value, "word"));
-                    emulator.setRegister("AX", emulator.getRegister("AX") &
-                                               value);
+                [s.any(0x24, 0x25)]: (b)=>{ // AND AL/AX, imm8
+                    let value = emulator.get(size),
+                        reg   = ["AL", "AX"][bitW];
+                    
+                    _setFlags(emulator, _and(emulator.getRegister(reg),
+                                             value, size));
+                    emulator.setRegister(reg, emulator.getRegister(reg) &
+                                              value);
                     opcode = b;
                     return true;
                 },
@@ -552,9 +595,10 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
-                [s.any(0x80, 0x81)]: (b)=>{ // ADD/ADC/AND/CMP r/m(8/16), imm(8/16)
+                [s.bet(0x80, 0x82)]: (b)=>{ // ADD/ADC/AND/OR/CMP r/m(8/16), imm(8/16)
                     let c,
-                        modRM = _parseModRM(bitW, emulator.get("byte"));
+                        modRM = _parseModRM(bitW, emulator.get("byte")),
+                        imm   = emulator.get(size);
 
                     if(modRM.operand instanceof Array){
                         let addr  = _calcAddress(emulator, modRM.operand),
@@ -562,14 +606,21 @@ var Machine8086 = {
                         
                         switch(modRM.reg){
                             case 0b000: // ADD
-                                emulator.add(addr, size, emulator.get(size));
+                                emulator.add(addr, size, imm);
+                                c = _add(value, imm, size);
+                                break;
+                            case 0b001: // OR
+                                emulator.set(addr, size, value | imm);
+                                c = _or(value, imm, size);
                                 break;
                             case 0b010: // ADC
-                                emulator.add(addr, size, emulator.get(size) +
+                                emulator.add(addr, size, imm +
                                                          emulator.getFlag("CF"));
+                                c = _add(value, imm + emulator.getFlag("CF"), size);
                                 break;
                             case 0b100: // AND
-                                emulator.set(addr, size, value & emulator.get(size));
+                                emulator.set(addr, size, value & imm);
+                                c = _and(value, imm, size);
                                 break;
                             case 0b111: // CMP
                                 c = _subtract(emulator.getFrom(addr, size),
@@ -578,81 +629,33 @@ var Machine8086 = {
                                 break;
                         }
                     } else {
+                        let value = emulator.getRegister(modRM.operand);
+
                         switch(modRM.reg){
                             case 0b000: // ADD
-                                emulator.addRegister(modRM.operand, emulator.get(size));
+                                emulator.addRegister(modRM.operand, imm);
+                                c = _add(value, imm, size);
+                                break;
+                            case 0b001: // OR
+                                emulator.setRegister(modRM.operand, value | imm);
+                                c = _or(value, imm, size);
                                 break;
                             case 0b010: // ADC
-                                emulator.addRegister(modRM.operand, emulator.get(size) +
+                                emulator.addRegister(modRM.operand, imm +
                                                                     emulator.getFlag("CF"));
+                                c = _add(value, imm + emulator.getFlag("CF"), size);
                                 break;
                             case 0b100: // AND
-                                emulator.setRegister(modRM.operand,
-                                                     emulator.getRegister(modRM.operand) &
-                                                     emulator.get(size));
+                                emulator.setRegister(modRM.operand, value & imm);
+                                c = _and(value, imm, size);
                                 break;
                             case 0b111: // CMP
-                                c = _subtract(emulator.getRegister(modRM.operand),
-                                              emulator.get(size),
-                                              size);
+                                c = _subtract(value, imm, size);
                                 break;
                         }
                     }
 
-                    if(modRM.reg == 0b111){
-                        _setFlags(emulator, c);
-                    }
-
-                    opcode = b;
-                    return true;
-                },
-                0x83: (b)=>{ // ADD/ADC/AND/CMP r/m16, imm8
-                    let c,
-                        modRM = _parseModRM(bitW, emulator.get("byte"));
-
-                    if(modRM.operand instanceof Array){
-                        let addr  = _calcAddress(emulator, modRM.operand),
-                            value = emulator.getFrom(addr, size);
-                        
-                        switch(modRM.reg){
-                            case 0b000: // ADD
-                                emulator.add(addr, "word", emulator.get("byte"));
-                                break;
-                            case 0b010: // ADC
-                                emulator.add(addr, "word", emulator.get("byte") +
-                                                           emulator.getFlag("CF"));
-                                break;
-                            case 0b100: // AND
-                                emulator.set(addr, "word", value & emulator.get("byte"));
-                                break;
-                            case 0b111: // CMP
-                                c = _subtract(value, emulator.get("byte"), "byte");
-                                break;
-                        }
-                    } else {
-                        switch(modRM.reg){
-                            case 0b000: // ADD
-                                emulator.addRegister(modRM.operand, emulator.get("byte"));
-                                break;
-                            case 0b010: // ADC
-                                emulator.addRegister(modRM.operand, emulator.get("byte") +
-                                                                    emulator.getFlag("CF"));
-                                break;
-                            case 0b100: // AND
-                                emulator.setRegister(modRM.operand,
-                                                     emulator.getRegister(modRM.operand) &
-                                                     emulator.get("byte"));
-                                break;
-                            case 0b111: // CMP
-                                c = _subtract(emulator.getRegister(modRM.operand),
-                                              emulator.get("byte"), "byte");
-                                break;
-                        }
-                    }
-
-                    if(modRM.reg == 0b111){
-                        _setFlags(emulator, c);
-                    }
+                    _setFlags(emulator, c);
 
                     opcode = b;
                     return true;
@@ -743,6 +746,17 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                0x9C: (b)=>{ // PUSHF
+                    emulator.pushf();
+
+                    opcode = b;
+                    return true;
+                },
+                0x9D: (b)=>{ // POPF
+                    emulator.popf();
+                    opcode = b;
+                    return true;
+                },
                 0x9E: (b)=>{ // SAHF
                     let ah = emulator.getRegister("AH");
 
@@ -767,6 +781,23 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
+                [s.any(0xA4, 0xA5)]: (b)=>{ // MOVSB/MOVSW
+                    let addrSi = emulator.address("DS:SI"),
+                        addrDi = emulator.address("ES:DI");
+
+                    emulator.set(addrDi, size, emulator.getFrom(addrSi, size));
+                    
+                    if(emulator.getFlag("DF")){
+                        emulator.addRegister("SI", -(bitW + 1));
+                        emulator.addRegister("DI", -(bitW + 1));
+                    } else {
+                        emulator.addRegister("SI", bitW + 1);
+                        emulator.addRegister("DI", bitW + 1);
+                    }
+                    
+                    opcode = b;
+                    return true;
+                },
                 [s.any(0xA6, 0xA7)]: (b)=>{ // CMPSB/CMPSW
                     let si = emulator.getFrom("DS:SI", size),
                         di = emulator.getFrom("ES:DI", size);
@@ -774,11 +805,11 @@ var Machine8086 = {
                     _setFlags(emulator, _subtract(si, di, size));
 
                     if(emulator.getFlag("DF")){
-                        emulator.addRegister("SI", -1);
-                        emulator.addRegister("DI", -1);
+                        emulator.addRegister("SI", -(bitW + 1));
+                        emulator.addRegister("DI", -(bitW + 1));
                     } else {
-                        emulator.addRegister("SI", 1);
-                        emulator.addRegister("DI", 1);
+                        emulator.addRegister("SI", bitW + 1);
+                        emulator.addRegister("DI", bitW + 1);
                     }
 
                     opcode = b;
@@ -965,7 +996,7 @@ var Machine8086 = {
                     opcode = b;
                     return true;
                 },
-                [s.any(0xF6, 0xF7)]: (b)=>{ // MUL/IMUL/DIV/IDIV r/m(8/16)
+                [s.any(0xF6, 0xF7)]: (b)=>{ // MUL/IMUL/DIV/IDIV/NEG/NOT r/m(8/16)
                     const MULT = 0x10000;
 
                     let value, result,
@@ -976,74 +1007,90 @@ var Machine8086 = {
                     else
                         value = emulator.getRegister(modRM.operand);
                     
-                    if(modRM.reg == 0b100 || modRM.reg == 0b101){ // MUL/IMUL
-                        let v;
-
-                        if(modRM.reg == 0b101)
-                            value = _signedValue(value, size);
-
-                        if(bitW){
-                            let dx;
+                    switch(modRM.reg){
+                        case 0b011: case 0b010: // NEG/NOT
+                            if(modRM.reg == 0b011)
+                                value = _toSignedValue(-value, size);
+                            else
+                                value = _toSignedValue(~value, size);
                             
-                            if(modRM.reg == 0b101){ // IMUL
-                                result = _toSignedValue(
-                                            _signedValue(emulator.getRegister("AX"), size) * value,
-                                            size);
-                                
-                                dx = _toSignedValue(parseInt(result / MULT), size);
-                            } else {
-                                result = emulator.getRegister("AX") * value;
-                                dx     = parseInt(result / MULT);
-                            }
-
-                            emulator.setRegister("DX", dx);
-                            emulator.setRegister("AX", result & 0xFFFF);
-
-                            v = 0 + (dx != 0);
-                        } else {
-                            if(modRM.reg == 0b101){ // IMUL
-                                result = _toSignedValue(
-                                            _signedValue(emulator.getRegister("AL"), size) * value,
-                                            size);
-                            } else {
-                                result = emulator.getRegister("AL") * value;
-                            }
-
-                            emulator.setRegister("AX", result);
-                            v = 0 + (emulator.getRegister("AH") != 0);
-                        }
-
-                        emulator.setFlag("CF", v);
-                        emulator.setFlag("OF", v);
-                    } else if(value == 0){
-                        this.interrupt(emulator, 0, b); // Division by Zero
-                    } else { // DIV/IDIV
-                        if(modRM.reg == 0b111) // IDIV
+                            if(modRM.operand instanceof Array)
+                                emulator.set(_calcAddress(emulator, modRM.operand), size, value);
+                            else
+                                emulator.setRegister(modRM.operand, value);
+                            
+                            break;
+                        case 0b101: // IMUL
                             value = _signedValue(value, size);
+                        case 0b100: // MUL
+                            let v;                                
 
-                        if(bitW){
-                            result = (emulator.getRegister("DX") * MULT) + emulator.getRegister("AX");
+                            if(bitW){
+                                let dx;
+                                
+                                if(modRM.reg == 0b101){ // IMUL
+                                    result = _toSignedValue(
+                                                _signedValue(emulator.getRegister("AX"), size) * value,
+                                                size);
+                                    
+                                    dx = _toSignedValue(parseInt(result / MULT), size);
+                                } else {
+                                    result = emulator.getRegister("AX") * value;
+                                    dx     = parseInt(result / MULT);
+                                }
 
-                            if(modRM.reg == 0b111){ // IDIV
-                                result = _signedValue(result, "dword");
-                                emulator.setRegister("AX", _toSignedValue(result / value, "word"));
-                                emulator.setRegister("DX", _toSignedValue(result % value, "word"));
+                                emulator.setRegister("DX", dx);
+                                emulator.setRegister("AX", result & 0xFFFF);
+
+                                v = 0 + (dx != 0);
                             } else {
-                                emulator.setRegister("AX", result / value);
-                                emulator.setRegister("DX", result % value);
-                            }
-                        } else {
-                            result = emulator.getRegister("AX");
+                                if(modRM.reg == 0b101){ // IMUL
+                                    result = _toSignedValue(
+                                                _signedValue(emulator.getRegister("AL"), size) * value,
+                                                size);
+                                } else {
+                                    result = emulator.getRegister("AL") * value;
+                                }
 
-                            if(modRM.reg == 0b111){ // IDIV
-                                result = _signedValue(result, "word");
-                                emulator.setRegister("AL", _toSignedValue(result / value, "byte"));
-                                emulator.setRegister("AH", _toSignedValue(result % value, "byte"));
-                            } else {
-                                emulator.setRegister("AL", result / value);
-                                emulator.setRegister("AH", result % value);
+                                emulator.setRegister("AX", result);
+                                v = 0 + (emulator.getRegister("AH") != 0);
                             }
-                        }
+
+                            emulator.setFlag("CF", v);
+                            emulator.setFlag("OF", v);
+                            break;
+                        case 0b111: // IDIV
+                            value = _signedValue(value, size);
+                        case 0b110: // DIV
+                            if(value == 0){
+                                this.interrupt(emulator, 0, b); // Division by Zero
+                                break;
+                            }
+                            
+                            if(bitW){
+                                result = (emulator.getRegister("DX") * MULT) + emulator.getRegister("AX");
+    
+                                if(modRM.reg == 0b111){ // IDIV
+                                    result = _signedValue(result, "dword");
+                                    emulator.setRegister("AX", _toSignedValue(result / value, "word"));
+                                    emulator.setRegister("DX", _toSignedValue(result % value, "word"));
+                                } else {
+                                    emulator.setRegister("AX", result / value);
+                                    emulator.setRegister("DX", result % value);
+                                }
+                            } else {
+                                result = emulator.getRegister("AX");
+    
+                                if(modRM.reg == 0b111){ // IDIV
+                                    result = _signedValue(result, "word");
+                                    emulator.setRegister("AL", _toSignedValue(result / value, "byte"));
+                                    emulator.setRegister("AH", _toSignedValue(result % value, "byte"));
+                                } else {
+                                    emulator.setRegister("AL", result / value);
+                                    emulator.setRegister("AH", result % value);
+                                }
+                            }
+                            break;
                     }
 
                     opcode = b;
@@ -1333,6 +1380,38 @@ function _and(value1, value2, size = "byte"){
         v2   = _signedValue(value2, size),
         s2   = Math.sign(v2),
         res  = v1 & v2,
+        sres = Math.sign(res),
+        ret  = {
+            v1:   v1,
+            s1:   s1,
+            v2:   v2,
+            s2:   s2,
+            res:  res,
+            sres: sres
+        };
+    
+    ret.of = 0;
+    ret.zf = 0 + (res == 0);
+    ret.sf = 0 + (sres == -1);
+    ret.pf = 1 - (sres & 1);
+    ret.cf = 0;
+    ret.af = -1;
+    
+    return ret;
+}
+
+function _or(value1, value2, size = "byte"){
+    var max = {
+        "byte":  0xFF,
+        "word":  0xFFFF,
+        "dword": 0xFFFFFFFF
+    }[size];
+
+    var v1   = _signedValue(value1, size),
+        s1   = Math.sign(v1),
+        v2   = _signedValue(value2, size),
+        s2   = Math.sign(v2),
+        res  = v1 | v2,
         sres = Math.sign(res),
         ret  = {
             v1:   v1,

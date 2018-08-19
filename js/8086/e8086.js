@@ -359,6 +359,20 @@ class Emulator8086 {
         return value;
     }
 
+    pushf(){
+        this.push( this.eflags );
+    }
+
+    popf(){
+        var flist   = ["OF", "DF", "IF", "TF", "SF", "ZF", "AF", "PF", "CF"];
+        this.eflags = this.pop();
+
+        if(typeof this.OnFlagSet == "function"){
+            for(let i = 0; i < flist.length; i++)
+                this.OnFlagSet(flist[i]);
+        }
+    }
+
     /*****
      * Loads in memory an array or string.
      *****/
