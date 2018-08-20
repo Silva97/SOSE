@@ -679,10 +679,10 @@ var Machine8086 = {
                 },
                 0x8C: (b)=>{ // MOV r/m16, sreg
                     let sreg  = ["ES", "CS", "SS", "DS"];
-                    let modRM = _parseModRM(bitW, emulator.get("byte"));
+                    let modRM = _parseModRM(1, emulator.get("byte"));
 
                     if(modRM.operand instanceof Array){
-                        emulator.set(_calcAddress(emulator, modRM.operand), "byte",
+                        emulator.set(_calcAddress(emulator, modRM.operand), "word",
                                      emulator.getRegister(sreg[modRM.reg]));
                     } else {
                         emulator.setRegister(modRM.operand,
@@ -703,10 +703,10 @@ var Machine8086 = {
                 },
                 0x8E: (b)=>{ // MOV sreg, r/m16
                     let sreg  = ["ES", "CS", "SS", "DS"];
-                    let modRM = _parseModRM(bitW, emulator.get("byte"));
+                    let modRM = _parseModRM(1, emulator.get("byte"));
 
                     if(modRM.operand instanceof Array){
-                        let value = emulator.getFrom(_calcAddress(emulator, modRM.operand), "byte");
+                        let value = emulator.getFrom(_calcAddress(emulator, modRM.operand), "word");
                         emulator.setRegister(sreg[modRM.reg], value);
                     } else {
                         emulator.setRegister(sreg[modRM.reg], emulator.getRegister(modRM.operand));
